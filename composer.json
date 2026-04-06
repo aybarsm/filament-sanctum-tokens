@@ -38,6 +38,13 @@
             "Tests\\": "tests"
         }
     },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Aybarsm\\Filament\\SanctumTokens\\FilamentSanctumTokensServiceProvider"
+            ]
+        }
+    },
     "config": {
         "sort-packages": true,
         "optimize-autoloader": true,
