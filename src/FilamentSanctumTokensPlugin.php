@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 namespace Aybarsm\Filament\SanctumTokens;
-use Aybarsm\Filament\SanctumTokens\Facades\FilamentSanctumTokens as Facade;
 use Aybarsm\Filament\SanctumTokens\Contracts\FilamentSanctumTokensPluginContract;
 use Filament\Panel;
 
@@ -17,7 +16,7 @@ final class FilamentSanctumTokensPlugin implements FilamentSanctumTokensPluginCo
     public function register(Panel $panel): void
     {
         $panel->resources([
-            Facade::getFilamentResourceClass(),
+            namespace\Filament\Resources\SanctumTokens\SanctumTokenResource::class,
         ]);
     }
 

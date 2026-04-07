@@ -134,11 +134,6 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
         return $this->getCacheStore()?->get($this->getCacheKey(), []);
     }
 
-    public function getFilamentResourceClass(): string
-    {
-        return self::config('filament.resource', namespace\Filament\Resources\SanctumTokens\SanctumTokenResource::class);
-    }
-
     public function getTokenModelSelectFields(): array
     {
         if (self::getData()->has('model.select.fields')) {

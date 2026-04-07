@@ -13,6 +13,5 @@ interface FilamentSanctumTokensContract
     public function getDiscoveredModels(): array;
     public static function isClassEligible(string $class): bool;
     public function getCache(): ?array;
-    public function getFilamentResourceClass(): string;
     public function getTokenModelSelectFields(): array;
 }

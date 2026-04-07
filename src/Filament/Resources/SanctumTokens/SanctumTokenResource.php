@@ -22,6 +22,7 @@ final class SanctumTokenResource extends FilamentResource
     protected static ?string $recordTitleAttribute = 'Sanctum Token';
     protected static string | \UnitEnum | null $navigationGroup = 'Auth';
     protected static ?string $slug = 'auth/sanctum/tokens';
+    protected static string | \BackedEnum | null $navigationIcon = Heroicon::OutlinedKey;
 
     public static function getModel(): string
     {
