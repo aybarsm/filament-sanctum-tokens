@@ -43,7 +43,10 @@
         "laravel": {
             "providers": [
                 "Aybarsm\\Filament\\SanctumTokens\\FilamentSanctumTokensServiceProvider"
-            ]
+            ],
+            "aliases": {
+                "FilamentSanctumTokens": "Aybarsm\\Filament\\SanctumTokens\\Facades\\FilamentSanctumTokens"
+            }
         }
     },
     "config": {

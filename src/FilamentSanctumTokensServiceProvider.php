@@ -31,12 +31,7 @@ final class FilamentSanctumTokensServiceProvider extends ServiceProvider
     {
         $this->app->singleton(
             namespace\Contracts\FilamentSanctumTokensContract::class,
-            static function ($app) {
-                return new namespace\FilamentSanctumTokens(
-                    modelsInclude: config('filament-sanctum-tokens.models.include'),
-                    modelsExclude: config('filament-sanctum-tokens.models.exclude'),
-                );
-            }
+            namespace\FilamentSanctumTokens::class,
         );
         $this->app->alias(
             namespace\Contracts\FilamentSanctumTokensContract::class,

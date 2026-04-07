@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace Aybarsm\Filament\SanctumTokens;
+use Filament\Panel;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Env;
@@ -10,17 +11,16 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Fluent;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Contracts\HasApiTokens as HasApiTokensContract;
+use TomatoPHP\FilamentUsers\FilamentUsersPlugin;
 use function Illuminate\Filesystem\join_paths;
 
 final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctumTokensContract
 {
     protected static Fluent $data;
-
-    public function __construct(
-        array $modelsInclude = [],
-        array $modelsExclude = [],
-    )
+    public function __construct()
     {
+        $modelsInclude = config('filament-sanctum-tokens.models.include', []);
+        $modelsExclude = config('filament-sanctum-tokens.models.exclude', []);
         self::include(...$modelsInclude);
         self::exclude(...$modelsExclude);
     }
@@ -164,5 +164,15 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
         $current = self::getData()->get($key, []);
         array_unshift($current, ...$values);
         self::getData()->set($key, $current);
+    }
+
+    public static function getTokenModel(): string
+    {
+        return \Laravel\Sanctum\Sanctum::personalAccessTokenModel();
+    }
+
+    public static function getTokenModelObject(): Model
+    {
+        return self::getTokenModel()::getModel();
     }
 }
