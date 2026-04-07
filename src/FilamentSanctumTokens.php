@@ -66,7 +66,7 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
             return self::getData()->get('discovered', []);
         }
 
-        $cache = $this->getCache();
+        $cache = $this->getCache() ?? [];
         if (array_key_exists('discovered', $cache)){
             self::getData()->set('discovered', $cache['discovered']);
             return $cache['discovered'];
