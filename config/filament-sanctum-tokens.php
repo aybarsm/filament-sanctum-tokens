@@ -9,11 +9,13 @@ return [
         'key' => 'filament-sanctum-tokens',
     ],
     'models' => [
+        /**
+         * Path or class
+         */
         'include' => [
             app_path('Models'),
         ],
         'exclude' => [
-            \App\Models\User::class,
         ],
     ],
 ];

@@ -23,9 +23,6 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
     {
         self::include(...$modelsInclude);
         self::exclude(...$modelsExclude);
-        dump([
-            'classData' => self::getData()->all()
-        ]);
     }
 
     public function getModelClasses(): array
