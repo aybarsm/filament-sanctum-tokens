@@ -12,6 +12,8 @@ return [
         'include' => [
             app_path('Models'),
         ],
-        'exclude' => [],
+        'exclude' => [
+            \App\Models\User::class,
+        ],
     ],
 ];

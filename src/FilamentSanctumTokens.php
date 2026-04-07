@@ -23,28 +23,9 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
     {
         self::include(...$modelsInclude);
         self::exclude(...$modelsExclude);
-        dump(self::getData()->all());
-    }
-    protected static function getData(): Fluent
-    {
-        if (!isset(self::$data)) self::$data = new Fluent();
-        return self::$data;
-    }
-
-    protected static function dataPush(string $key, ...$values): void
-    {
-        if (count($values) === 0) return;
-        $current = self::getData()->get($key, []);
-        array_push($current, ...$values);
-        self::getData()->set($key, $current);
-    }
-
-    protected static function dataUnshift(string $key, ...$values): void
-    {
-        if (count($values) === 0) return;
-        $current = self::getData()->get($key, []);
-        array_unshift($current, ...$values);
-        self::getData()->set($key, $current);
+        dump([
+            'classData' => self::getData()->all()
+        ]);
     }
 
     public function getModelClasses(): array
@@ -64,7 +45,7 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
                 $classmapPath = join_paths($vendorDir, 'composer', 'autoload_classmap.php');
                 $classmap = include $classmapPath;
                 foreach($classmap as $class => $path) {
-                    if (in_array($class, $includeClasses, true) && !in_array($path, $excludeClasses, true)) {
+                    if (in_array($class, $includeClasses, true)) {
                         $cache['discovered'][] = $class;
                     }elseif(Str::startsWith(dirname($path), $includePaths) && !Str::startsWith(dirname($path), $excludePaths)){
                         $cache['discovered'][] = $class;
@@ -72,7 +53,7 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
                 }
                 $cache['discovered'] = array_filter(
                     array_unique($cache['discovered']),
-                    static fn ($class) => self::isClassEligible($class)
+                    static fn ($class) => !in_array($class, $excludeClasses, true) && self::isClassEligible($class)
                 );
             }
         }
@@ -164,5 +145,27 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
     protected function putCache(array $context): bool
     {
         return $this->getCacheStore()->forever($this->getCacheKey(), $context);
+    }
+
+    protected static function getData(): Fluent
+    {
+        if (!isset(self::$data)) self::$data = new Fluent();
+        return self::$data;
+    }
+
+    protected static function dataPush(string $key, ...$values): void
+    {
+        if (count($values) === 0) return;
+        $current = self::getData()->get($key, []);
+        array_push($current, ...$values);
+        self::getData()->set($key, $current);
+    }
+
+    protected static function dataUnshift(string $key, ...$values): void
+    {
+        if (count($values) === 0) return;
+        $current = self::getData()->get($key, []);
+        array_unshift($current, ...$values);
+        self::getData()->set($key, $current);
     }
 }
