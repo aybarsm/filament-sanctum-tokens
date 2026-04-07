@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace Aybarsm\Filament\SanctumTokens;
+use Aybarsm\Filament\SanctumTokens\Facades\FilamentSanctumTokens as Facade;
 use Aybarsm\Filament\SanctumTokens\Contracts\FilamentSanctumTokensPluginContract;
 use Filament\Panel;
 
@@ -15,9 +16,9 @@ final class FilamentSanctumTokensPlugin implements FilamentSanctumTokensPluginCo
 
     public function register(Panel $panel): void
     {
-//        $panel->resources([
-//            namespace\Filament\Resources\SanctumToken\SanctumTokenResource::class,
-//        ]);
+        $panel->resources([
+            Facade::getFilamentResourceClass(),
+        ]);
     }
 
     public function boot(Panel $panel): void
@@ -27,13 +28,13 @@ final class FilamentSanctumTokensPlugin implements FilamentSanctumTokensPluginCo
 
     public static function make(): self
     {
-        return app(self::class);
+        return app(namespace\Contracts\FilamentSanctumTokensPluginContract::class);
     }
 
     public static function get(): self
     {
         /** @var static $plugin */
-        $plugin = filament(app(self::class)->getId());
+        $plugin = filament(app(namespace\Contracts\FilamentSanctumTokensPluginContract::class)->getId());
 
         return $plugin;
     }

@@ -37,6 +37,10 @@ final class FilamentSanctumTokensServiceProvider extends ServiceProvider
             namespace\Contracts\FilamentSanctumTokensContract::class,
             'filament-sanctum-tokens'
         );
+        $this->app->singletonIf(
+            namespace\Contracts\FilamentSanctumTokensPluginContract::class,
+            namespace\FilamentSanctumTokensPlugin::class,
+        );
     }
 
     private function bootPublishes(): void

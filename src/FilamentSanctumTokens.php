@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use Laravel\Sanctum\Contracts\HasApiTokens as HasApiTokensContract;
 use TomatoPHP\FilamentUsers\FilamentUsersPlugin;
 use function Illuminate\Filesystem\join_paths;
+use Illuminate\Database\Eloquent\Builder;
 
 final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctumTokensContract
 {
@@ -133,10 +134,44 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
         return $this->getCacheStore()?->get($this->getCacheKey(), []);
     }
 
+    public function getFilamentResourceClass(): string
+    {
+        return self::config('filament.resource', namespace\Filament\Resources\SanctumTokens\SanctumTokenResource::class);
+    }
+
+    public function getTokenModelSelectFields(): array
+    {
+        if (self::getData()->has('model.select.fields')) {
+            return self::getData()->get('model.select.fields', []);
+        }
+
+        $model = self::getTokenModelObject();
+        $fields = array_unique(array_merge(
+            [$model->getKeyName()],
+            array_keys($model->getAttributes()),
+            $model->getFillable(),
+            array_keys($model->getCasts()),
+        ));
+        $fields = array_diff($fields, array_merge($model->getHidden(), $model->getGuarded()));
+
+        self::getData()->set('model.select.fields', $fields);
+        return $fields;
+    }
+
     protected function getCacheKey(): string
     {
-        $config = config('filament-sanctum-tokens.cache.key');
-        return filled($config) ? $config : 'filament-sanctum-tokens';
+        return self::config('cache.key', 'filament-sanctum-tokens');
+    }
+
+    protected function config(string $key, mixed $default = null): mixed
+    {
+        $key = str($key)->split('#\.#', -1, PREG_SPLIT_NO_EMPTY)->toArray();
+        if ($key[0] !== 'filament-sanctum-tokens') {
+            array_unshift($key, 'filament-sanctum-tokens');
+        }
+        $key = implode('.', $key);
+        $config = config($key);
+        return filled($config) ? $config : $default;
     }
     protected function putCache(array $context): void
     {

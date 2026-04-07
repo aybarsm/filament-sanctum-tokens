@@ -2,40 +2,37 @@
 
 declare(strict_types=1);
 
-namespace Aybarsm\Filament\SanctumTokens\Filament\Resources\SanctumToken;
+namespace Aybarsm\Filament\SanctumTokens\Filament\Resources\SanctumTokens;
+use Aybarsm\Filament\SanctumTokens\Facades\FilamentSanctumTokens as Facade;
+use Filament\Support\Icons\Heroicon;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
-use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Resources\Resource as FilamentResource;
-use Illuminate\Database\Eloquent\Model;
 final class SanctumTokenResource extends FilamentResource
 {
     protected static ?string $label = 'Sanctum Token';
-
-    protected static ?string $modelLabel = 'Personal Access Token';
+    protected static ?string $modelLabel = 'Sanctum Token';
     protected static ?string $pluralLabel = 'Sanctum Tokens';
-    protected static ?string $pluralModelLabel = 'Personal Access Tokens';
-    protected static ?string $recordTitleAttribute = 'Personal Access Token';
+    protected static ?string $pluralModelLabel = 'Sanctum Tokens';
+    protected static ?string $recordTitleAttribute = 'Sanctum Token';
     protected static string | \UnitEnum | null $navigationGroup = 'Auth';
-//    protected static bool $shouldRegisterNavigation = false;
     protected static ?string $slug = 'auth/sanctum/tokens';
 
     public static function getModel(): string
     {
-        return \Laravel\Sanctum\Sanctum::personalAccessTokenModel();
+        return Facade::getTokenModel();
     }
 
-    public static function getModelObject(): Model
+    public static function getPages(): array
     {
-        return self::getModel()::getModel();
+        return [
+            'index' => namespace\Pages\ListTokens::route('/'),
+        ];
     }
 
 //    public static function form(Schema $schema): Schema
@@ -66,35 +63,29 @@ final class SanctumTokenResource extends FilamentResource
 //                TextInput::make('data'),
 //            ]);
 //    }
-//
+
     public static function table(Table $table): Table
     {
         return $table
             ->modifyQueryUsing(
-                static fn (Builder $query) => $query->select(['id', 'symbol_id', 'period', 'opened_at'])
+                static fn (Builder $query) => $query->select(Facade::getTokenModelSelectFields())
             )
-            ->defaultSort('opened_at', 'desc')
-            ->recordTitleAttribute('Candle')
+//            ->defaultSort('opened_at', 'desc')
             ->columns([
-                TextColumn::make('symbol.name')
+                TextColumn::make('ID')
                     ->searchable(),
-                TextColumn::make('period')
-                    ->searchable(),
-                TextColumn::make('opened_at')
-                    ->dateTime('Y-m-d H:i:s', 'UTC')
-                    ->sortable(),
             ])
             ->filters([
                 //
             ])
             ->recordActions([
-                EditAction::make(),
-                DeleteAction::make(),
+//                EditAction::make(),
+//                DeleteAction::make(),
             ])
             ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
+//                BulkActionGroup::make([
+//                    DeleteBulkAction::make(),
+//                ]),
             ]);
     }
 
