@@ -17,6 +17,7 @@ use function Illuminate\Filesystem\join_paths;
 final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctumTokensContract
 {
     protected static Fluent $data;
+    
     public function __construct()
     {
         $modelsInclude = config('filament-sanctum-tokens.models.include', []);
