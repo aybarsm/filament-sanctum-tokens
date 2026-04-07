@@ -29,17 +29,17 @@ final class FilamentSanctumTokensServiceProvider extends ServiceProvider
 
     private function registerBindings(): void
     {
-        $this->app->singleton(
+        $this->app->singletonIf(
             namespace\Contracts\FilamentSanctumTokensContract::class,
             namespace\FilamentSanctumTokens::class,
-        );
-        $this->app->alias(
-            namespace\Contracts\FilamentSanctumTokensContract::class,
-            'filament-sanctum-tokens'
         );
         $this->app->singletonIf(
             namespace\Contracts\FilamentSanctumTokensPluginContract::class,
             namespace\FilamentSanctumTokensPlugin::class,
+        );
+        $this->app->alias(
+            namespace\Contracts\FilamentSanctumTokensContract::class,
+            'filament-sanctum-tokens'
         );
     }
 

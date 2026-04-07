@@ -10,9 +10,10 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
+use Filament\Tables\Table as FilamentTable;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Resources\Resource as FilamentResource;
+use Filament\Schemas\Schema as FilamentSchema;
 final class SanctumTokenResource extends FilamentResource
 {
     protected static ?string $label = 'Sanctum Token';
@@ -27,6 +28,16 @@ final class SanctumTokenResource extends FilamentResource
     public static function getModel(): string
     {
         return Facade::getTokenModel();
+    }
+
+    public static function form(FilamentSchema $schema): FilamentSchema
+    {
+        return namespace\Schemas\SanctumTokenForm::configure($schema);
+    }
+
+    public static function table(FilamentTable $table): FilamentTable
+    {
+        return namespace\Tables\SanctumTokensTable::configure($table);
     }
 
     public static function getPages(): array
@@ -65,30 +76,30 @@ final class SanctumTokenResource extends FilamentResource
 //            ]);
 //    }
 
-    public static function table(Table $table): Table
-    {
-        return $table
-            ->modifyQueryUsing(
-                static fn (Builder $query) => $query->select(Facade::getTokenModelSelectFields())
-            )
-//            ->defaultSort('opened_at', 'desc')
-            ->columns([
-                TextColumn::make('ID')
-                    ->searchable(),
-            ])
-            ->filters([
-                //
-            ])
-            ->recordActions([
-//                EditAction::make(),
-//                DeleteAction::make(),
-            ])
-            ->toolbarActions([
-//                BulkActionGroup::make([
-//                    DeleteBulkAction::make(),
-//                ]),
-            ]);
-    }
+//    public static function table(Table $table): Table
+//    {
+//        return $table
+//            ->modifyQueryUsing(
+//                static fn (Builder $query) => $query->select(Facade::getTokenModelSelectFields())
+//            )
+////            ->defaultSort('opened_at', 'desc')
+//            ->columns([
+//                TextColumn::make('ID')
+//                    ->searchable(),
+//            ])
+//            ->filters([
+//                //
+//            ])
+//            ->recordActions([
+////                EditAction::make(),
+////                DeleteAction::make(),
+//            ])
+//            ->toolbarActions([
+////                BulkActionGroup::make([
+////                    DeleteBulkAction::make(),
+////                ]),
+//            ]);
+//    }
 
 //    public static function getRelations(): array
 //    {
