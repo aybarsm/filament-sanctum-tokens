@@ -17,48 +17,95 @@ use function Illuminate\Filesystem\join_paths;
 final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctumTokensContract
 {
     protected static Fluent $data;
-    
-    public function __construct()
+
+    public static function getTokenModel(): string
     {
-        $modelsInclude = config('filament-sanctum-tokens.models.include', []);
-        $modelsExclude = config('filament-sanctum-tokens.models.exclude', []);
-        self::include(...$modelsInclude);
-        self::exclude(...$modelsExclude);
+        return \Laravel\Sanctum\Sanctum::personalAccessTokenModel();
     }
 
-    public function getModelClasses(): array
+    public static function getTokenModelObject(): Model
+    {
+        return self::getTokenModel()::getModel();
+    }
+
+    public function getModelDiscovery(): array
+    {
+        if (self::getData()->has('discovery')) {
+            return self::getData()->get('discovery', []);
+        }
+
+        $ret = self::getDiscoveryTemplate();
+        $includes = config('filament-sanctum-tokens.models.include', []);
+        $excludes = config('filament-sanctum-tokens.models.exclude', []);
+
+        if (count($includes) === 0 && count($excludes) === 0){
+            self::getData()->set('discovery', $ret);
+            return $ret;
+        }
+
+        $ret['exclude'] = array_unique(array_map(
+            static fn ($item) => !class_exists($item) && file_exists($item) ? realpath($item) : $item,
+            $excludes,
+        ));
+
+        foreach ($includes as $item) {
+            $isClass = class_exists($item);
+            self::validateDiscoveryItem($item, $isClass);
+            $item = $isClass ? $item : realpath($item);
+            $target = $isClass ? 'class' : (is_dir($item) ? 'dir' : 'file');
+            if (in_array($item, $ret['include'][$target], true)) continue;
+            $ret['include'][$target][] = $item;
+        }
+
+        self::getData()->set('discovery', $ret);
+        return $ret;
+    }
+    public function getDiscoveredModels(): array
     {
         if (self::getData()->has('discovered')) {
             return self::getData()->get('discovered', []);
         }
 
         $cache = $this->getCache();
-        if (!array_key_exists('discovered', $cache)){
-            $includeClasses = self::getData()->get('include.class', []);
-            $excludeClasses = self::getData()->get('exclude.class', []);
-            $includePaths = self::getData()->get('include.path', []);
-            $excludePaths = self::getData()->get('exclude.path', []);
-            if (count($includeClasses) > 0 || count($includePaths) > 0) {
-                $vendorDir = Env::get('COMPOSER_VENDOR_DIR', base_path('vendor'));
-                $classmapPath = join_paths($vendorDir, 'composer', 'autoload_classmap.php');
-                $classmap = include $classmapPath;
-                foreach($classmap as $class => $path) {
-                    if (in_array($class, $includeClasses, true)) {
-                        $cache['discovered'][] = $class;
-                    }elseif(Str::startsWith(dirname($path), $includePaths) && !Str::startsWith(dirname($path), $excludePaths)){
-                        $cache['discovered'][] = $class;
-                    }
-                }
-                $cache['discovered'] = array_filter(
-                    array_unique($cache['discovered']),
-                    static fn ($class) => !in_array($class, $excludeClasses, true) && self::isClassEligible($class)
-                );
-            }
+        if (array_key_exists('discovered', $cache)){
+            self::getData()->set('discovered', $cache['discovered']);
+            return $cache['discovered'];
         }
 
-        self::getData()->set('discovered', $cache['discovered']);
+        $cache['discovered'] = [];
+        $discovery = self::getModelDiscovery();
+        $classes = array_flip($discovery['include']['class']);
+        $files = array_flip($discovery['include']['file']);
+        $dirs = $discovery['include']['dir'];
 
-        if ($this->cacheEnabled()) $this->putCache($cache);
+        if (count($classes) === 0 && count($files) === 0 && count($dirs) === 0){
+            self::getData()->set('discovered', $cache['discovered']);
+            return $cache['discovered'];
+        }
+
+        $excludesRaw = $discovery['exclude'];
+        $excludes = array_flip($excludesRaw);
+
+        $vendorDir = Env::get('COMPOSER_VENDOR_DIR', base_path('vendor'));
+        $classmapPath = join_paths($vendorDir, 'composer', 'autoload_classmap.php');
+        $classmap = include $classmapPath;
+        foreach($classmap as $class => $path) {
+            if (isset($cache['discovered'][$class])) {
+                continue;
+            }elseif (!isset($classes[$class]) && !isset($files[$path]) && !Str::startsWith(dirname($path), $dirs)) {
+                continue;
+            }elseif (isset($excludes[$class]) || isset($excludes[$path]) || Str::startsWith(dirname($path), $excludesRaw)) {
+                continue;
+            }elseif (!self::isClassEligible($class)) {
+                continue;
+            }
+
+            $cache['discovered'][$class] = null;
+        }
+
+        $cache['discovered'] = array_keys($cache['discovered']);
+        self::getData()->set('discovered', $cache['discovered']);
+        $this->putCache($cache);
 
         return $cache['discovered'];
     }
@@ -70,110 +117,61 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
         if (!is_subclass_of($class, AuthenticatableContract::class)) return false;
         return is_subclass_of($class, HasApiTokensContract::class);
     }
-
-    public static function include(...$pathsOrClasses): void
+    protected function getCacheStore(): ?\Illuminate\Contracts\Cache\Repository
     {
-        foreach($pathsOrClasses as $item) {
-            self::addInclude($item);
-        }
+        $isEnabled = config('filament-sanctum-tokens.cache.enabled');
+        $isEnabled = in_array($isEnabled, [true, false], true) ? $isEnabled : app()->isProduction();
+        if (!$isEnabled) return null;
+
+        $store = config('filament-sanctum-tokens.cache.store');
+        $store = filled($store) ? $store : Cache::getStore();
+        return Cache::store($store);
     }
 
-    public static function exclude(...$pathsOrClasses): void
+    public function getCache(): ?array
     {
-        foreach($pathsOrClasses as $item) {
-            self::addExclude($item);
-        }
-    }
-    protected static function addInclude(string $item): void
-    {
-        $isClass = class_exists($item);
-        $isPath = file_exists($item) && is_dir($item) && is_readable($item);
-        $item = $isPath ? realpath($item) : $item;
-
-        throw_if(
-            !$isClass && !$isPath,
-            namespace\Exceptions\FilamentSanctumTokensException::class,
-            sprintf('Discovery include item [%s] not a class or readable directory path.', $item)
-        );
-
-        $key = 'include.' . ($isClass ? 'class' : 'path');
-        if (in_array($item, self::getData()->get($key, []), true)) return;
-        self::dataPush($key, $item);
+        return $this->getCacheStore()?->get($this->getCacheKey(), []);
     }
 
-    protected static function addExclude(string $item): void
-    {
-        $isClass = class_exists($item);
-        $isPath = file_exists($item) && is_dir($item);
-        $item = $isPath ? realpath($item) : $item;
-
-        throw_if(
-            !$isClass && !$isPath,
-            namespace\Exceptions\FilamentSanctumTokensException::class,
-            sprintf('Discovery exclusion item [%s] not a class or directory path.', $item)
-        );
-
-        $key = 'exclude.' . ($isClass ? 'class' : 'path');
-        if (in_array($item, self::getData()->get($key, []), true)) return;
-        self::dataPush($key, $item);
-    }
-
-    public function cacheEnabled(): bool
-    {
-        $config = config('filament-sanctum-tokens.cache.enabled');
-        return in_array($config, [true, false], true) ? $config : app()->isProduction();
-    }
-
-    public function getCacheKey(): string
+    protected function getCacheKey(): string
     {
         $config = config('filament-sanctum-tokens.cache.key');
         return filled($config) ? $config : 'filament-sanctum-tokens';
     }
-
-    public function getCacheStore(): \Illuminate\Contracts\Cache\Repository
+    protected function putCache(array $context): void
     {
-        $config = config('filament-sanctum-tokens.cache.store');
-        return filled($config) ? Cache::store($config) : Cache::store(Cache::getStore());
+        $this->getCacheStore()?->forever($this->getCacheKey(), $context);
     }
-
-    public function getCache(): array
-    {
-        return $this->cacheEnabled() ? $this->getCacheStore()->get($this->getCacheKey(), []) : [];
-    }
-    protected function putCache(array $context): bool
-    {
-        return $this->getCacheStore()->forever($this->getCacheKey(), $context);
-    }
-
     protected static function getData(): Fluent
     {
         if (!isset(self::$data)) self::$data = new Fluent();
         return self::$data;
     }
 
-    protected static function dataPush(string $key, ...$values): void
+    protected static function getDiscoveryTemplate(): array
     {
-        if (count($values) === 0) return;
-        $current = self::getData()->get($key, []);
-        array_push($current, ...$values);
-        self::getData()->set($key, $current);
+        return ['include' => ['class' => [], 'file' => [], 'dir' => []], 'exclude' => []];
     }
 
-    protected static function dataUnshift(string $key, ...$values): void
+    protected static function throw_if(mixed $condition, mixed $message): void
     {
-        if (count($values) === 0) return;
-        $current = self::getData()->get($key, []);
-        array_unshift($current, ...$values);
-        self::getData()->set($key, $current);
+        $condition = value($condition);
+        throw_if(
+            $condition,
+            namespace\Exceptions\FilamentSanctumTokensException::class,
+            value($message, $condition)
+        );
     }
 
-    public static function getTokenModel(): string
+    protected static function validateDiscoveryItem(string $item, bool $isClass): void
     {
-        return \Laravel\Sanctum\Sanctum::personalAccessTokenModel();
-    }
-
-    public static function getTokenModelObject(): Model
-    {
-        return self::getTokenModel()::getModel();
+        self::throw_if(
+            !$isClass && !file_exists($item),
+            sprintf('Discovery include item [%s] is not a class or an existing path.', $item)
+        );
+        self::throw_if(
+            !$isClass && !is_readable($item),
+            sprintf('Discovery include path [%s] is not a readable path.', $item)
+        );
     }
 }

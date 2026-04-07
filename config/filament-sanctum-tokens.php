@@ -11,7 +11,7 @@ return [
     'models' => [
         /**
          *
-         * Paths or classes
+         * Classes or paths
          * (Discovery uses composer's autoload_classmap)
          *
          * Discovered classes must implement the interfaces:
