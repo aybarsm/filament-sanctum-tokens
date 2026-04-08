@@ -7,6 +7,7 @@ use Filament\Panel;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Env;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Fluent;
@@ -164,6 +165,16 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
     {
         $class = self::resolveMorphClass($value);
         return array_flip(Relation::$morphMap)[$class] ?? $class;
+    }
+    public static function getSanctumExpiration(): ?float
+    {
+        $expiration = (float) config('sanctum.expiration');
+        return $expiration > 0 ? $expiration : null;
+    }
+    public static function getTokenDefaultExpiresAt(): ?\DateTimeInterface
+    {
+        $expiration = self::getSanctumExpiration();
+        return $expiration ? Carbon::now()->addMinutes($expiration) : null;
     }
 
     protected function getCacheKey(): string

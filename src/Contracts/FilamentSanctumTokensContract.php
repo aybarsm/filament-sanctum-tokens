@@ -16,4 +16,7 @@ interface FilamentSanctumTokensContract
     public function getTokenModelSelectFields(): array;
     public static function resolveMorphClass(string $value): ?string;
     public static function resolveMorphType(string $value): ?string;
+    public static function getSanctumExpiration(): ?float;
+    public static function getTokenDefaultExpiresAt(): ?\DateTimeInterface;
+
 }
