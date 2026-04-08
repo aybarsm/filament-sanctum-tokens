@@ -16,52 +16,15 @@ use Laravel\Sanctum\Contracts\HasApiTokens as HasApiTokensContract;
 use TomatoPHP\FilamentUsers\FilamentUsersPlugin;
 use function Illuminate\Filesystem\join_paths;
 use Illuminate\Database\Eloquent\Builder;
+use Laravel\Sanctum\Sanctum;
 
 final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctumTokensContract
 {
     protected static Fluent $data;
 
-    public static function getTokenModel(): string
+    public static function getFilamentPluginClass(): string
     {
-        return \Laravel\Sanctum\Sanctum::personalAccessTokenModel();
-    }
-
-    public static function getTokenModelObject(): Model
-    {
-        return self::getTokenModel()::getModel();
-    }
-
-    public function getModelDiscovery(): array
-    {
-        if (self::getData()->has('discovery')) {
-            return self::getData()->get('discovery', []);
-        }
-
-        $ret = self::getDiscoveryTemplate();
-        $includes = config('filament-sanctum-tokens.models.include', []);
-        $excludes = config('filament-sanctum-tokens.models.exclude', []);
-
-        if (count($includes) === 0 && count($excludes) === 0){
-            self::getData()->set('discovery', $ret);
-            return $ret;
-        }
-
-        $ret['exclude'] = array_unique(array_map(
-            static fn ($item) => !class_exists($item) && file_exists($item) ? realpath($item) : $item,
-            $excludes,
-        ));
-
-        foreach ($includes as $item) {
-            $isClass = class_exists($item);
-            self::validateDiscoveryItem($item, $isClass);
-            $item = $isClass ? $item : realpath($item);
-            $target = $isClass ? 'class' : (is_dir($item) ? 'dir' : 'file');
-            if (in_array($item, $ret['include'][$target], true)) continue;
-            $ret['include'][$target][] = $item;
-        }
-
-        self::getData()->set('discovery', $ret);
-        return $ret;
+        return namespace\FilamentSanctumTokensPlugin::class;
     }
     public function getDiscoveredModels(): array
     {
@@ -72,7 +35,7 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
         $cache = $this->getCache() ?? [];
         if (!array_key_exists('discovered', $cache)) {
             $cache['discovered'] = [];
-            $discovery = self::getModelDiscovery();
+            $discovery = $this->getModelDiscovery();
             $classes = array_flip($discovery['include']['class']);
             $files = array_flip($discovery['include']['file']);
             $dirs = $discovery['include']['dir'];
@@ -113,7 +76,23 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
         return $cache['discovered'];
     }
 
-    public static function isClassEligible(string $class): bool
+    public static function getSanctumExpiration(): ?float
+    {
+        $expiration = (float) config('sanctum.expiration');
+        return $expiration > 0 ? $expiration : null;
+    }
+    public static function getTokenDefaultExpiresAt(): ?\DateTimeInterface
+    {
+        $expiration = self::getSanctumExpiration();
+        return $expiration ? Carbon::now()->addMinutes($expiration) : null;
+    }
+
+    protected function getCache(): ?array
+    {
+        return $this->getCacheStore()?->get($this->getCacheKey(), []);
+    }
+
+    protected static function isClassEligible(string $class): bool
     {
         if (!class_exists($class)) return false;
         if (!is_subclass_of($class, Model::class)) return false;
@@ -131,50 +110,37 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
         return Cache::store($store);
     }
 
-    public function getCache(): ?array
+    protected function getModelDiscovery(): array
     {
-        return $this->getCacheStore()?->get($this->getCacheKey(), []);
-    }
-
-    public function getTokenModelSelectFields(): array
-    {
-        if (self::getData()->has('model.select.fields')) {
-            return self::getData()->get('model.select.fields', []);
+        if (self::getData()->has('discovery')) {
+            return self::getData()->get('discovery', []);
         }
 
-        $model = self::getTokenModelObject();
-        $fields = array_unique(array_merge(
-            [$model->getKeyName()],
-            array_keys($model->getAttributes()),
-            $model->getFillable(),
-            array_keys($model->getCasts()),
+        $ret = self::getDiscoveryTemplate();
+        $includes = config('filament-sanctum-tokens.models.include', []);
+        $excludes = config('filament-sanctum-tokens.models.exclude', []);
+
+        if (count($includes) === 0 && count($excludes) === 0){
+            self::getData()->set('discovery', $ret);
+            return $ret;
+        }
+
+        $ret['exclude'] = array_unique(array_map(
+            static fn ($item) => !class_exists($item) && file_exists($item) ? realpath($item) : $item,
+            $excludes,
         ));
-        $fields = array_diff($fields, array_merge($model->getHidden(), $model->getGuarded()));
 
-        self::getData()->set('model.select.fields', $fields);
-        return $fields;
-    }
+        foreach ($includes as $item) {
+            $isClass = class_exists($item);
+            self::validateDiscoveryItem($item, $isClass);
+            $item = $isClass ? $item : realpath($item);
+            $target = $isClass ? 'class' : (is_dir($item) ? 'dir' : 'file');
+            if (in_array($item, $ret['include'][$target], true)) continue;
+            $ret['include'][$target][] = $item;
+        }
 
-    public static function resolveMorphClass(string $value): ?string
-    {
-        $value = Relation::$morphMap[$value] ?? $value;
-        return class_exists($value) && is_subclass_of($value, Model::class) ? $value : null;
-    }
-
-    public static function resolveMorphType(string $value): ?string
-    {
-        $class = self::resolveMorphClass($value);
-        return array_flip(Relation::$morphMap)[$class] ?? $class;
-    }
-    public static function getSanctumExpiration(): ?float
-    {
-        $expiration = (float) config('sanctum.expiration');
-        return $expiration > 0 ? $expiration : null;
-    }
-    public static function getTokenDefaultExpiresAt(): ?\DateTimeInterface
-    {
-        $expiration = self::getSanctumExpiration();
-        return $expiration ? Carbon::now()->addMinutes($expiration) : null;
+        self::getData()->set('discovery', $ret);
+        return $ret;
     }
 
     protected function getCacheKey(): string

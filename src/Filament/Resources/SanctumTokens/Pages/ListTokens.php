@@ -16,29 +16,12 @@ final class ListTokens extends ListRecords
 {
     protected static string $resource = SanctumTokenResource::class;
 
-    protected static function createTokenModel(array $data): Model
-    {
-        $modelId = $data['tokenable_id'];
-        $model = $data['tokenable_type'];
-        $model = Relation::getMorphedModel($model) ?? $model;
-        $model = $model::findOrFail($modelId, $model::getModel()->getKeyName());
 
-        $args = [
-            'name' => $data['name'],
-            'abilities' => $data['abilities'] ?? [],
-            'expiresAt' => $data['expires_at'] ?? null,
-        ];
-
-        if (isset($args['expiresAt'])) {
-            $args['expiresAt'] = Carbon::parse($args['expiresAt']);
-        }
-        return $model->createToken(...$args)->accessToken;
-    }
     protected function getHeaderActions(): array
     {
         return [
             CreateAction::make()
-                ->using(static fn (array $data): Model => self::createTokenModel($data)),
+                ->using(static fn (array $data): Model => filament('')),
         ];
     }
 }

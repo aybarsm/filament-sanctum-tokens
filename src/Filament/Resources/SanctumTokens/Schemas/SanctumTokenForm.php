@@ -12,8 +12,11 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TextInput\Actions\CopyAction;
 use Filament\Forms\Components\TextInput\Actions\HidePasswordAction;
+use Filament\Forms\View\FormsIconAlias;
 use Filament\Schemas\Schema;
 use Aybarsm\Filament\SanctumTokens\Facades\FilamentSanctumTokens as Facade;
+use Filament\Support\Facades\FilamentIcon;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Cache;
@@ -77,141 +80,67 @@ final class SanctumTokenForm
         return $ret;
     }
 
-    protected static function makeViewTokenInput(): TextInput
+    protected static function makeViewTokenInput(Schema $schema): TextInput
     {
-        $ret = TextInput::make('token')
+        $ret = TextInput::make('plainTextToken')
             ->label('Token')
             ->readonly()
             ->disabled()
-            ->live()
             ->dehydrated(false)
-            ->columnSpanFull();
+            ->columnSpanFull()
+            ->formatStateUsing(static fn (?string $state) => $state === null ? : $state)
+            ->live();
 
-        $actionShow = ShowPasswordAction::make('revealToken')
-            ->tooltip('Reveal Token')
-            ->action()
-        ;
-        $actionHide = HidePasswordAction::make('hideToken');
-        $actionCopy = CopyAction::make('copyToken');
-    }
-
-    protected static function tokenFormateState(?string $state, Model $record, TextInput $component): string
-    {
-        if ($state === null) {
-            $component->meta('isTokenRevealed', false);
-            return '*****';
-        }
-
-//        $isRevealed = $component->getMeta('isTokenRevealed');
-//        if ($state === null) {
-//            $isRevealed = false;
-//            if (method_exists($record, 'getPlainTextToken')){
-//                $state = $component->evaluate(\Closure::fromCallable([$record, 'getPlainTextToken']));
-//            }else {
-//                $record->makeVisible('token');
-//                $state = "{$record->getKey()}|{$record->token}";
-//                $record->makeHidden('token');
-//            }
-//        }else {
-//            $isRevealed
-//        }
+//        $schema->getRecord()
+//
+//
+//        $actionShow = Action::make('token::reveal')
+//            ->icon(FilamentIcon::resolve(FormsIconAlias::COMPONENTS_TEXT_INPUT_ACTIONS_SHOW_PASSWORD) ?? Heroicon::Eye)
+//            ->defaultColor('gray')
+//            ->tooltip('Reveal Token')
+//            ->visible(static fn (TextInput $component) => $component->getMeta('isTokenRevealed') !== true)
+//            ->action(static function (TextInput $component, Model $record) {
+//                if (!$component->hasMeta('tokenValue')) {
+//                    if (method_exists($record, 'getPlainTextToken')) {
+//                        $component->meta(
+//                            'tokenValue',
+//                            $component->evaluate(\Closure::fromCallable([$record, 'getPlainTextToken']))
+//                        );
+//                    } else {
+//                        $record->makeVisible('token');
+//                        $component->meta('tokenValue', "{$record->getKey()}|{$record->token}");
+//                        $record->makeHidden('token');
+//                    }
+//                }
+//                $component->meta('isTokenRevealed', true);
+//                $component->state($component->getMeta('tokenValue'));
+//            });
+//
+//        $actionHide = Action::make('token::hide')
+//            ->icon(FilamentIcon::resolve(FormsIconAlias::COMPONENTS_TEXT_INPUT_ACTIONS_HIDE_PASSWORD) ?? Heroicon::EyeSlash)
+//            ->defaultColor('gray')
+//            ->tooltip('Hide Token')
+//            ->visible(static fn (TextInput $component) => $component->getMeta('isTokenRevealed') === true)
+//            ->action(static function (TextInput $component, $set) {
+//                $component->state(str_repeat('*', 64));
+//                $component->meta('isTokenRevealed', false);
+//            });
 ////
-////        $component->meta('isTokenRevealed', ($isRevealed === null ? false : !$isRevealed));
-//        ds([
-//            'state' => $state,
-//            'meta' => $component->getMeta(),
-//        ]);
-//        if (!$isRevealed) return 'OBSTRUCTED';
-//
-//        $state = $component->getMeta('tokenState');
-//        if ($state === null){
-//
-//            $component->meta('tokenState', $state);
-//        }
-//
-//        return $state === null ? 'blank' : $state;
-        return 'Comolokko';
+//        $ret->suffixActions([$actionShow, $actionHide], true);
+//        $ret->suffixActions([$actionShow], true);
+//        $actionHide = HidePasswordAction::make('hideToken');
+//        $actionCopy = CopyAction::make('copyToken');
+        return $ret;
     }
+
+
 
     protected static function getSchemaComponents(Schema $schema): array
     {
         $ret = [];
 
         if ($schema->getOperation() === 'view'){
-//            Event::listen(ActionCalled::class, static function ($action): void {
-//                dump([
-//                    'stage' => 'ActionCalled',
-//                    'action' => $action->getName(),
-//                ]);
-//            });
-
-
-//            $input->
-                ->suffixActions([
-//                    ShowPasswordAction::make('showToken')->visible(true),
-//                    HidePasswordAction::make('hideToken')->visible(true),
-//                    CopyAction::make('copyToken')->visible(true),
-//                ])
-//                ->formatStateUsing(static fn (?string $state, Model $record, TextInput $component) => self::tokenFormateState($state, $record, $component))
-//                ->formatStateUsing(static function (TextInput $component): string {
-//                    ds([
-//                        'stage' => 'formatStateUsing',
-//                        'meta' => $component->getMeta(),
-//                    ]);
-//                    return 'COMOLOKKO';
-//                })
-
-//            Log::info('Comolokko');
-//            $suffixActions = $input->getSuffixActions();
-//            ds([
-//                'before' => $suffixActions['showPassword']
-//            ]);
-//
-//            $suffixActions['showPassword']->action(static function (TextInput $component): void {
-//                Log::info('action showPassword');
-////                dump('I AM CALLED!');
-////                $component->meta('isTokenRevealed', true);
-////                ds([
-////                    'stage' => 'showPassword',
-////                    'meta' => $component->getMeta(),
-////                ]);
-//            });
-
-//            $input->suffixActions($suffixActions, true);
-//            ds([
-//                'after' => $suffixActions['showPassword'],
-//                'all' => $input->getSuffixActions(),
-//            ]);
-
-
-
-//            $actions = $input->getActions();
-//            $actions['showPassword']->after(static function (TextInput $component): void{
-//                $component->meta('isTokenRevealed', true);
-//                ds([
-//                    'stage' => 'showPassword',
-//                    'meta' => $component->getMeta(),
-//                ]);
-//            });
-//            $input->registerActions($actions);
-//            ds([
-//                'suffixActions' => $input->getSuffixActions(),
-////                'actions' => $input->getActions()
-//            ]);
-//            $action = $input->getAction('showPassword');
-//            $action->after()
-//
-
-//            $input->getAction('hidePassword')->after(static function (TextInput $component): void {
-//                $component->meta('isTokenRevealed', false);
-//                ds([
-//                    'stage' => 'hidePassword',
-//                    'meta' => $component->getMeta(),
-//                ]);
-//            });
-
-
-//            $ret[] = $input;
+            $ret[] = self::makeViewTokenInput($schema);
         }
 
         if (in_array($schema->getOperation(), ['view', 'edit'])){
