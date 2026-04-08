@@ -106,16 +106,6 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
 
         sort($cache['discovered']);
 
-        if (Relation::requiresMorphMap()){
-            $morphMap = array_flip(Relation::$morphMap);
-            foreach($cache['discovered'] as $class) {
-                if (!isset($morphMap[$class])) {
-                    $morphMap[$class] = $class;
-                }
-            }
-            Relation::morphMap(array_flip($morphMap));
-        }
-
         self::getData()->set('discovered', $cache['discovered']);
         $this->putCache($cache);
 
