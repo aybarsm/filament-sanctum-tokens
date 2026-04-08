@@ -16,6 +16,7 @@ class SanctumTokensTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->defaultSort('last_used_at', 'desc')
             ->columns([
                 TextColumn::make('name')
                     ->label('Name')
