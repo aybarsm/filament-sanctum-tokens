@@ -22,7 +22,7 @@ class SanctumTokensTable
                     ->searchable(),
                 TextColumn::make('tokenable_type')
                     ->label('Model')
-                    ->formatStateUsing(static fn (string $state) => Relation::getMorphedModel($state))
+                    ->formatStateUsing(static fn (string $state) => Relation::getMorphedModel($state) ?? $state)
                     ->searchable(),
                 TextColumn::make('tokenable_id')
                     ->label('Model ID')

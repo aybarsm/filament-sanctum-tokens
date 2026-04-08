@@ -6,7 +6,7 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\MorphToSelect;
 use Filament\Forms\Components\MorphToSelect\Type;
-use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 use Aybarsm\Filament\SanctumTokens\Facades\FilamentSanctumTokens as Facade;
@@ -18,7 +18,7 @@ final class SanctumTokenForm
     {
         return array_map(
             static function (string $class) {
-                $label = Relation::getMorphedModel($class);
+                $label = Relation::getMorphedModel($class) ?? $class;
                 $titleAttr = $class::getModel()->getKeyName();
                 return Type::make($class)->label($label)->titleAttribute($titleAttr);
             },
@@ -29,6 +29,7 @@ final class SanctumTokenForm
     protected static function getExpiresAtActions(): array
     {
         $ret = [];
+
         if (Facade::getSanctumExpiration()){
             $ret[] = Action::make('expires_at::default')
                 ->tooltip('Refresh Default Expires At')
@@ -43,6 +44,22 @@ final class SanctumTokenForm
             ->icon('heroicon-m-x-mark')
             ->color('gray')
             ->action(static fn ($set) => $set('expires_at', null))
+            ->visible(static fn ($state) => filled($state));
+
+        return $ret;
+    }
+
+    protected static function getAbilitiesActions(): array
+    {
+        $ret = [];
+
+        $ret[] = Action::make('abilities::clear')
+            ->label('Remove All Abilities')
+            ->tooltip('Clear')
+            ->icon('heroicon-m-x-mark')
+            ->color('gray')
+            ->requiresConfirmation()
+            ->action(static fn ($set) => $set('abilities', null))
             ->visible(static fn ($state) => filled($state));
 
         return $ret;
@@ -76,15 +93,21 @@ final class SanctumTokenForm
                     ->label('Expires At')
                     ->native(false)
                     ->default(static fn ($operation) => $operation === 'create' ? Facade::getTokenDefaultExpiresAt() : null)
+                    ->format('Y-m-d H:i:s P')
                     ->displayFormat('Y-m-d H:i:s')
                     ->nullable()
-                    ->live()
                     ->hint(static fn ($state, DateTimePicker $component) => filled($state) ? "Timezone: {$component->getTimezone()}" : null)
                     ->placeholder('Never')
                     ->suffixActions(self::getExpiresAtActions(), true)
+                    ->live()
                     ->columnSpan(['default' => 'half']),
-                Textarea::make('abilities')
+                TagsInput::make('abilities')
                     ->label('Abilities')
+                    ->default(['*'])
+                    ->splitKeys(['Enter', ' ', ','])
+                    ->suffixActions(self::getAbilitiesActions(), true)
+                    ->placeholder('Add New Ability')
+                    ->live()
                     ->columnSpanFull(),
                 MorphToSelect::make('tokenable')
                     ->label('Model')
