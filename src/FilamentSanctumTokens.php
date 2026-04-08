@@ -6,6 +6,7 @@ namespace Aybarsm\Filament\SanctumTokens;
 use Filament\Panel;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Env;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Fluent;
@@ -68,43 +69,53 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
         }
 
         $cache = $this->getCache() ?? [];
-        if (array_key_exists('discovered', $cache)){
-            self::getData()->set('discovered', $cache['discovered']);
-            return $cache['discovered'];
-        }
+        if (!array_key_exists('discovered', $cache)) {
+            $cache['discovered'] = [];
+            $discovery = self::getModelDiscovery();
+            $classes = array_flip($discovery['include']['class']);
+            $files = array_flip($discovery['include']['file']);
+            $dirs = $discovery['include']['dir'];
 
-        $cache['discovered'] = [];
-        $discovery = self::getModelDiscovery();
-        $classes = array_flip($discovery['include']['class']);
-        $files = array_flip($discovery['include']['file']);
-        $dirs = $discovery['include']['dir'];
-
-        if (count($classes) === 0 && count($files) === 0 && count($dirs) === 0){
-            self::getData()->set('discovered', $cache['discovered']);
-            return $cache['discovered'];
-        }
-
-        $excludesRaw = $discovery['exclude'];
-        $excludes = array_flip($excludesRaw);
-
-        $vendorDir = Env::get('COMPOSER_VENDOR_DIR', base_path('vendor'));
-        $classmapPath = join_paths($vendorDir, 'composer', 'autoload_classmap.php');
-        $classmap = include $classmapPath;
-        foreach($classmap as $class => $path) {
-            if (isset($cache['discovered'][$class])) {
-                continue;
-            }elseif (!isset($classes[$class]) && !isset($files[$path]) && !Str::startsWith(dirname($path), $dirs)) {
-                continue;
-            }elseif (isset($excludes[$class]) || isset($excludes[$path]) || Str::startsWith(dirname($path), $excludesRaw)) {
-                continue;
-            }elseif (!self::isClassEligible($class)) {
-                continue;
+            if (count($classes) === 0 && count($files) === 0 && count($dirs) === 0) {
+                self::getData()->set('discovered', $cache['discovered']);
+                return $cache['discovered'];
             }
 
-            $cache['discovered'][$class] = null;
+            $excludesRaw = $discovery['exclude'];
+            $excludes = array_flip($excludesRaw);
+
+            $vendorDir = Env::get('COMPOSER_VENDOR_DIR', base_path('vendor'));
+            $classmapPath = join_paths($vendorDir, 'composer', 'autoload_classmap.php');
+            $classmap = include $classmapPath;
+            foreach ($classmap as $class => $path) {
+                if (isset($cache['discovered'][$class])) {
+                    continue;
+                } elseif (!isset($classes[$class]) && !isset($files[$path]) && !Str::startsWith(dirname($path), $dirs)) {
+                    continue;
+                } elseif (isset($excludes[$class]) || isset($excludes[$path]) || Str::startsWith(dirname($path), $excludesRaw)) {
+                    continue;
+                } elseif (!self::isClassEligible($class)) {
+                    continue;
+                }
+
+                $cache['discovered'][$class] = null;
+            }
+
+            $cache['discovered'] = array_keys($cache['discovered']);
         }
 
-        $cache['discovered'] = array_keys($cache['discovered']);
+        sort($cache['discovered']);
+
+        if (Relation::requiresMorphMap()){
+            $morphMap = array_flip(Relation::$morphMap);
+            foreach($cache['discovered'] as $class) {
+                if (!isset($morphMap[$class])) {
+                    $morphMap[$class] = $class;
+                }
+            }
+            Relation::morphMap(array_flip($morphMap));
+        }
+
         self::getData()->set('discovered', $cache['discovered']);
         $this->putCache($cache);
 
@@ -151,6 +162,18 @@ final class FilamentSanctumTokens implements namespace\Contracts\FilamentSanctum
 
         self::getData()->set('model.select.fields', $fields);
         return $fields;
+    }
+
+    public static function resolveMorphClass(string $value): ?string
+    {
+        $value = Relation::$morphMap[$value] ?? $value;
+        return class_exists($value) && is_subclass_of($value, Model::class) ? $value : null;
+    }
+
+    public static function resolveMorphType(string $value): ?string
+    {
+        $class = self::resolveMorphClass($value);
+        return array_flip(Relation::$morphMap)[$class] ?? $class;
     }
 
     protected function getCacheKey(): string

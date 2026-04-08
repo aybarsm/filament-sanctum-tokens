@@ -14,4 +14,6 @@ interface FilamentSanctumTokensContract
     public static function isClassEligible(string $class): bool;
     public function getCache(): ?array;
     public function getTokenModelSelectFields(): array;
+    public static function resolveMorphClass(string $value): ?string;
+    public static function resolveMorphType(string $value): ?string;
 }

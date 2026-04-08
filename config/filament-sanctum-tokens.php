@@ -3,6 +3,12 @@
 declare(strict_types=1);
 
 return [
+    'defaults' => [
+        'expiration' => [
+            'unit' => 'day',
+            'value' => 14,
+        ],
+    ],
     'cache' => [
         'enabled' => app()->isProduction(),
         'store' => env('CACHE_STORE', 'database'),

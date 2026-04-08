@@ -2,6 +2,7 @@
 
 namespace Aybarsm\Filament\SanctumTokens\Filament\Resources\SanctumTokens\Tables;
 
+use Aybarsm\Filament\SanctumTokens\Facades\FilamentSanctumTokens as Facade;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -22,9 +23,7 @@ class SanctumTokensTable
                     ->searchable(),
                 TextColumn::make('tokenable_type')
                     ->label('Model')
-                    ->formatStateUsing(
-                        static fn (string $state) => Relation::$morphMap[$state] ?? $state
-                    )
+                    ->formatStateUsing(static fn (string $state) => Facade::resolveMorphClass($state))
                     ->searchable(),
                 TextColumn::make('tokenable_id')
                     ->label('Model ID')
