@@ -7,6 +7,7 @@ use Aybarsm\Filament\SanctumTokens\Concerns\HasFilamentPluginMethods;
 use Aybarsm\Filament\SanctumTokens\Contracts\FilamentSanctumTokensPluginContract as PluginContract;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Env;
 use Illuminate\Support\Facades\Cache;
@@ -36,17 +37,6 @@ final class FilamentSanctumTokensPlugin implements PluginContract
         $this->putCache($cache);
 
         return $cache['discovered'];
-    }
-
-    public static function getSanctumExpiration(): ?float
-    {
-        $expiration = (float) config('sanctum.expiration');
-        return $expiration > 0 ? $expiration : null;
-    }
-    public static function getTokenDefaultExpiresAt(): ?\DateTimeInterface
-    {
-        $expiration = self::getSanctumExpiration();
-        return $expiration ? Carbon::now()->addMinutes($expiration) : null;
     }
 
     protected function buildModelDiscovery(): array

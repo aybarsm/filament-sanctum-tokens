@@ -3,15 +3,12 @@
 namespace Aybarsm\Filament\SanctumTokens\Filament\Resources\SanctumTokens\Schemas;
 
 use Filament\Actions\Action;
-use Filament\Actions\Events\ActionCalled;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\MorphToSelect;
 use Filament\Forms\Components\MorphToSelect\Type;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\TextInput\Actions\CopyAction;
-use Filament\Forms\Components\TextInput\Actions\HidePasswordAction;
 use Filament\Forms\View\FormsIconAlias;
 use Filament\Schemas\Schema;
 use Aybarsm\Filament\SanctumTokens\Facades\FilamentSanctumTokens as Facade;
@@ -19,13 +16,20 @@ use Filament\Support\Facades\FilamentIcon;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Process;
-use Filament\Forms\Components\TextInput\Actions\ShowPasswordAction;
+use Illuminate\Support\Carbon;
+use Filament\Forms\Components\Field as FilamentField;
 final class SanctumTokenForm
 {
+    public static function getSanctumExpiration(): ?float
+    {
+        $expiration = (float) config('sanctum.expiration');
+        return $expiration > 0 ? $expiration : null;
+    }
+    public static function getTokenDefaultExpiresAt(): ?\DateTimeInterface
+    {
+        $expiration = self::getSanctumExpiration();
+        return $expiration ? Carbon::now()->addMinutes($expiration) : null;
+    }
     protected static function getTokenableTypes(): array
     {
         return array_map(
@@ -42,12 +46,12 @@ final class SanctumTokenForm
     {
         $ret = [];
 
-        if ($schema->getOperation() === 'create' && Facade::getSanctumExpiration()){
+        if ($schema->getOperation() === 'create' && self::getSanctumExpiration()){
             $ret[] = Action::make('expires_at::default')
                 ->tooltip('Refresh Default Expires At')
                 ->icon('heroicon-m-arrow-path')
                 ->color('gray')
-                ->action(static fn ($set) => $set('expires_at', Facade::getTokenDefaultExpiresAt()))
+                ->action(static fn ($set) => $set('expires_at', self::getTokenDefaultExpiresAt()))
                 ->visible(static fn ($state) => blank($state));
         }
 
@@ -80,60 +84,64 @@ final class SanctumTokenForm
         return $ret;
     }
 
+    protected static function getTokenValue(FilamentField $component): string
+    {
+        $record = $component->getRecord();
+
+        if (method_exists($record, 'getPlainTextToken')) {
+            $ret = $component->evaluate(\Closure::fromCallable([$record, 'getPlainTextToken']));
+        } else {
+            $record->makeVisible('token');
+            $ret = "{$record->getKey()}|{$record->token}";
+            $record->makeHidden('token');
+        }
+
+        return $ret;
+    }
+
+    protected static function debugMethod(string|object $objectOrMethod, array $args, string|null $method = null): array
+    {
+        $ref = new \ReflectionMethod($objectOrMethod, $method);
+        $ret = [
+            'name' => $ref->getName(),
+            'args' => [],
+        ];
+
+        foreach ($ref->getParameters() as $i => $param) {
+            $name = $param->getName();
+            $ret['args'][$name] = $args[$i] ?? ($param->isDefaultValueAvailable() ? $param->getDefaultValue() : null);
+        }
+
+        return $ret;
+    }
+
+    protected static function debugBeforeStateDehydrated(): void
+    {
+        ds(self::debugMethod(__METHOD__, func_get_args()));
+    }
+
+    protected static function debugAfterStateHydrated(): void
+    {
+        ds(self::debugMethod(__METHOD__, func_get_args()));
+    }
+
     protected static function makeViewTokenInput(Schema $schema): TextInput
     {
-        $ret = TextInput::make('plainTextToken')
+        $ret = TextInput::make('token')
             ->label('Token')
+            ->password()
             ->readonly()
             ->disabled()
             ->dehydrated(false)
             ->columnSpanFull()
-            ->formatStateUsing(static fn (?string $state) => $state === null ? : $state)
-            ->live();
+            ->formatStateUsing(static fn (?string $state, TextInput $component): string => $state === null ? self::getTokenValue($component) : $state)
+            ->revealable()
+            ->copyable();
 
-//        $schema->getRecord()
-//
-//
-//        $actionShow = Action::make('token::reveal')
-//            ->icon(FilamentIcon::resolve(FormsIconAlias::COMPONENTS_TEXT_INPUT_ACTIONS_SHOW_PASSWORD) ?? Heroicon::Eye)
-//            ->defaultColor('gray')
-//            ->tooltip('Reveal Token')
-//            ->visible(static fn (TextInput $component) => $component->getMeta('isTokenRevealed') !== true)
-//            ->action(static function (TextInput $component, Model $record) {
-//                if (!$component->hasMeta('tokenValue')) {
-//                    if (method_exists($record, 'getPlainTextToken')) {
-//                        $component->meta(
-//                            'tokenValue',
-//                            $component->evaluate(\Closure::fromCallable([$record, 'getPlainTextToken']))
-//                        );
-//                    } else {
-//                        $record->makeVisible('token');
-//                        $component->meta('tokenValue', "{$record->getKey()}|{$record->token}");
-//                        $record->makeHidden('token');
-//                    }
-//                }
-//                $component->meta('isTokenRevealed', true);
-//                $component->state($component->getMeta('tokenValue'));
-//            });
-//
-//        $actionHide = Action::make('token::hide')
-//            ->icon(FilamentIcon::resolve(FormsIconAlias::COMPONENTS_TEXT_INPUT_ACTIONS_HIDE_PASSWORD) ?? Heroicon::EyeSlash)
-//            ->defaultColor('gray')
-//            ->tooltip('Hide Token')
-//            ->visible(static fn (TextInput $component) => $component->getMeta('isTokenRevealed') === true)
-//            ->action(static function (TextInput $component, $set) {
-//                $component->state(str_repeat('*', 64));
-//                $component->meta('isTokenRevealed', false);
-//            });
-////
-//        $ret->suffixActions([$actionShow, $actionHide], true);
-//        $ret->suffixActions([$actionShow], true);
-//        $actionHide = HidePasswordAction::make('hideToken');
-//        $actionCopy = CopyAction::make('copyToken');
+        $ret->getAction('copy')->extraAttributes(['x-show' => 'isPasswordRevealed'], true);
+
         return $ret;
     }
-
-
 
     protected static function getSchemaComponents(Schema $schema): array
     {
@@ -171,7 +179,7 @@ final class SanctumTokenForm
         $ret[] = DateTimePicker::make('expires_at')
             ->label('Expires At')
             ->native(false)
-            ->default($schema->getOperation() === 'create' ? Facade::getTokenDefaultExpiresAt() : null)
+            ->default($schema->getOperation() === 'create' ? self::getTokenDefaultExpiresAt() : null)
             ->format('Y-m-d H:i:s P')
             ->displayFormat('Y-m-d H:i:s')
             ->nullable()

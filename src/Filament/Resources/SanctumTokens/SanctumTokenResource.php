@@ -14,6 +14,8 @@ use Filament\Tables\Table as FilamentTable;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Resources\Resource as FilamentResource;
 use Filament\Schemas\Schema as FilamentSchema;
+use Laravel\Sanctum\Sanctum;
+
 final class SanctumTokenResource extends FilamentResource
 {
     protected static ?string $label = 'Sanctum Token';
@@ -27,7 +29,7 @@ final class SanctumTokenResource extends FilamentResource
 
     public static function getModel(): string
     {
-        return Facade::getTokenModel();
+        return Sanctum::personalAccessTokenModel();
     }
 
     public static function form(FilamentSchema $schema): FilamentSchema
