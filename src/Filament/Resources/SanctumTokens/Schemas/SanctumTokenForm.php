@@ -10,6 +10,7 @@ use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\View\FormsIconAlias;
+use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Schema;
 use Aybarsm\Filament\SanctumTokens\Facades\FilamentSanctumTokens as Facade;
 use Filament\Support\Facades\FilamentIcon;
@@ -84,12 +85,12 @@ final class SanctumTokenForm
         return $ret;
     }
 
-    protected static function getTokenValue(FilamentField $component): string
+    protected static function getTokenValue(Schema $schema): string
     {
-        $record = $component->getRecord();
+        $record = $schema->getRecord();
 
         if (method_exists($record, 'getPlainTextToken')) {
-            $ret = $component->evaluate(\Closure::fromCallable([$record, 'getPlainTextToken']));
+            $ret = $schema->evaluate(\Closure::fromCallable([$record, 'getPlainTextToken']));
         } else {
             $record->makeVisible('token');
             $ret = "{$record->getKey()}|{$record->token}";
@@ -99,46 +100,35 @@ final class SanctumTokenForm
         return $ret;
     }
 
-    protected static function debugMethod(string|object $objectOrMethod, array $args, string|null $method = null): array
-    {
-        $ref = new \ReflectionMethod($objectOrMethod, $method);
-        $ret = [
-            'name' => $ref->getName(),
-            'args' => [],
-        ];
-
-        foreach ($ref->getParameters() as $i => $param) {
-            $name = $param->getName();
-            $ret['args'][$name] = $args[$i] ?? ($param->isDefaultValueAvailable() ? $param->getDefaultValue() : null);
-        }
-
-        return $ret;
-    }
-
-    protected static function debugBeforeStateDehydrated(): void
-    {
-        ds(self::debugMethod(__METHOD__, func_get_args()));
-    }
-
-    protected static function debugAfterStateHydrated(): void
-    {
-        ds(self::debugMethod(__METHOD__, func_get_args()));
-    }
-
     protected static function makeViewTokenInput(Schema $schema): TextInput
     {
-        $ret = TextInput::make('token')
+        $ret = TextInput::make('plainTextToken')
             ->label('Token')
-            ->password()
-            ->readonly()
-            ->disabled()
-            ->dehydrated(false)
+            ->meta('valueHidden', str_repeat('*', 50))
+            ->meta('valueRevealed', self::getTokenValue($schema))
             ->columnSpanFull()
-            ->formatStateUsing(static fn (?string $state, TextInput $component): string => $state === null ? self::getTokenValue($component) : $state)
-            ->revealable()
-            ->copyable();
+            ->live()
+            ->formatStateUsing(static fn (?string $state, TextInput $component): string => $state === null ? $component->getMeta('valueHidden') : $state)
+            ->password(static fn (?string $state, TextInput $component) => $state === $component->getMeta('valueHidden'))
+            ->copyable(static fn (?string $state, TextInput $component): bool => $state === $component->getMeta('valueRevealed'));
 
-        $ret->getAction('copy')->extraAttributes(['x-show' => 'isPasswordRevealed'], true);
+        $ret->suffixActions([
+            Action::make('token::toggle')
+                ->tooltip('Reveal Token')
+                ->icon('heroicon-m-eye')
+                ->color('gray')
+                ->action(static function (?string $state, TextInput $component, Action $action, $set) {
+                    $valueHidden = $component->getMeta('valueHidden');
+                    $isHidden = $state === $valueHidden;
+                    if ($isHidden) {
+                        $set('plainTextToken', $component->getMeta('valueRevealed'));
+                        $action->tooltip('Hide Token')->icon('heroicon-m-eye-slash');
+                    }else {
+                        $set('plainTextToken', $valueHidden);
+                        $action->tooltip('Reveal Token')->icon('heroicon-m-eye');
+                    }
+                })
+        ]);
 
         return $ret;
     }
